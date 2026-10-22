@@ -64,3 +64,53 @@ What changed from v1 and what still needed work:
 - Told the model SauceDemo has no forgot-password or lockout, so it used @design-only tags and proxies (locked_out_user, cookie deletion) instead of inventing features.
 - Still to verify: error messages and cookie name were supplied by the model and must be checked on the live site.
 - Minor inconsistency: BF-04 is @automatable but carries a "not present" comment.
+#### Prompt v3
+(tool: ChatGPT, 2026-10-22)
+
+ROLE
+You are a Python SDET building automated UI regression tests using Playwright and pytest.
+
+Task
+TASK
+Write Python Playwright tests for the login module using the existing pytest framework.
+
+REQUIREMENTS
+
+Cover empty login fields, empty password, incorrect password, locked-out user, and successful login.
+
+Use pytest and Playwright's synchronous Python API.
+
+Use clear, descriptive test names.
+
+Assert exact error messages for negative login scenarios.
+
+For successful login, assert the resulting URL and that the inventory list is visible.
+
+Use stable locators and Playwright assertions.
+
+Do not invent error messages or application behavior.
+
+Do not overwrite unrelated files or duplicate existing tests.
+
+Return the complete Python code for tests/ui/test_login.py.
+
+VALIDATION
+Run the tests using:
+python -m pytest tests/ui/test_login.py -v
+
+Record the actual pass/fail results separately. Do not claim tests passed unless execution confirms it.
+
+v3 result
+
+Output: tests/ui/test_login.py
+
+Validation result: All five login tests passed, according to the terminal output recorded on 2026-10-22.
+
+What worked:
+
+Implemented five automated login scenarios using Python and Playwright.
+
+Verified exact error messages for the negative login scenarios.
+
+Verified successful navigation to the inventory page.
+
