@@ -10,3 +10,5 @@
 
 
 | 2026-10-22 | ChatGPT | Task 2 (Login) — Automation | Wrote Python Playwright + pytest automation tests for five login scenarios using the manually verified SauceDemo behavior: empty fields, empty password, incorrect password, locked-out user, and successful login | Automated tests saved in `tests/ui/test_login.py`; executed `python -m pytest tests/ui/test_login.py -v` | All 5 login tests passed. Exact error messages and successful redirection to `/inventory.html` were verified. Dashboard and REST API automation tests are still pending. |
+
+| 2026-10-22 | ChatGPT | Task 2 (Dashboard) — Automation | Generated Python Playwright + pytest UI tests for the SauceDemo inventory/dashboard module, covering product visibility, product count, price sorting, cart badge updates, and cart navigation | `tests/ui/test_dashboard.py` containing 5 automated UI tests | Ran the tests in headed mode with slow motion to observe browser behavior. Update this entry with the final pytest pass/fail results after confirming the terminal output. |

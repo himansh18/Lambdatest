@@ -1,25 +1,37 @@
 # Prompts Log
 
-All prompts are pasted exactly as I wrote them, with no edits after the fact.
+Prompts are documented in the order they were used. Original prompts should be preserved exactly as entered. Results, observations, and validation outcomes are documented separately from the prompt text.
 
 ## Login Module
 
-### Prompt v1
-(tool used: Claude / 22-10-2026)
+### Prompt v1 — Initial Test Case Generation
+
+**Tool:** Claude  
+**Date:** 2026-10-22
+
+**Prompt:**
 
 Generate test cases for the login page of a web app. Cover valid login, invalid credentials, forgot password, session expiry and brute-force lockout.
 
-#### v1 result
-Raw output: generated_tests/raw/login_v1_output.md
-What was wrong:
+#### v1 Result
+
+**Raw output:** `generated_tests/raw/login_v1_output.md`
+
+**Problems identified:**
+
 - Markdown tables with free-text steps, not Gherkin or JSON, so not directly automatable.
 - Many expected results were hedged ("per spec", "or a validation message").
 - No concrete test data, and no priority or tags.
 - Included features SauceDemo doesn't have (email login, forgot password, remember me, CAPTCHA).
 
-### Prompt v2
-(tool: Claude, 2026-10-22)
+**Conclusion:** The prompt did not provide enough application context or define a strict, automation-friendly output format. Prompt v2 was created to address these issues.
 
+### Prompt v2 — Refined Gherkin Generation
+
+**Tool:** Claude  
+**Date:** 2026-10-22
+
+**Prompt:**
 
 ROLE
 You are a senior SDET writing automatable regression tests for a web app.
@@ -55,17 +67,29 @@ Scenario: Standard user logs in successfully
 SELF-CHECK
 After the Gherkin, add a short comment block "# COVERAGE CHECK" listing, per area, the number of scenarios and any requirement you could not cover and why.
 
+#### v2 Result
 
-#### v2 result
-Output: generated_tests/login.feature
+**Output:** `generated_tests/login.feature`
 
-What changed from v1 and what still needed work:
-- Added role, context, strict Gherkin format, tags, limits and one example, so output became automatable and the right size.
-- Told the model SauceDemo has no forgot-password or lockout, so it used @design-only tags and proxies (locked_out_user, cookie deletion) instead of inventing features.
-- Still to verify: error messages and cookie name were supplied by the model and must be checked on the live site.
-- Minor inconsistency: BF-04 is @automatable but carries a "not present" comment.
-#### Prompt v3
-(tool: ChatGPT, 2026-10-22)
+**Improvements over v1:**
+
+- Added role, context, strict Gherkin format, tags, limits, and an example.
+- Clarified that unsupported SauceDemo features should not be invented.
+- Required concrete test data, deterministic expected outcomes, and a coverage check.
+
+**Remaining issues identified during review:**
+
+- Error messages and the cookie name supplied by the generated output needed verification against the live application.
+- BF-04 was tagged `@automatable` while also carrying a comment that the functionality was not present. This inconsistency needed review.
+
+**Conclusion:** Prompt v2 improved the structure and relevance of the generated cases, but the output still needed manual verification.
+
+### Prompt v3 — Login UI Automation
+
+**Tool:** ChatGPT  
+**Date:** 2026-10-22
+
+**Prompt:**
 
 ROLE
 You are a Python SDET building automated UI regression tests using Playwright and pytest.
@@ -100,17 +124,92 @@ python -m pytest tests/ui/test_login.py -v
 
 Record the actual pass/fail results separately. Do not claim tests passed unless execution confirms it.
 
-v3 result
+#### v3 Result
 
-Output: tests/ui/test_login.py
+**Output:** `tests/ui/test_login.py`
 
-Validation result: All five login tests passed, according to the terminal output recorded on 2026-10-22.
+**Validation command:**
 
-What worked:
+`python -m pytest tests/ui/test_login.py -v`
 
-Implemented five automated login scenarios using Python and Playwright.
+**Validation result:** All five Login tests passed, according to the terminal output recorded on 2026-10-22.
 
-Verified exact error messages for the negative login scenarios.
+**What worked:**
 
-Verified successful navigation to the inventory page.
+- Implemented five Login scenarios using Python, Playwright, and pytest.
+- Verified exact error messages for negative Login scenarios.
+- Verified successful navigation to the inventory page.
 
+**Conclusion:** The refined prompt produced executable Python UI tests, and all five tests passed in the reported run.
+
+---
+
+## Dashboard Module
+
+### Prompt v1 — Dashboard UI Automation
+
+**Tool:** ChatGPT  
+**Date:** 2026-10-22
+
+**Prompt:**
+
+ROLE
+
+You are a senior Python SDET writing reliable UI automation tests using Playwright and pytest.
+
+CONTEXT
+
+Project: Lambdatest
+Application: https://www.saucedemo.com/
+Language: Python only. Do not use JavaScript.
+Existing login tests: `tests/ui/test_login.py`
+New test file: `tests/ui/test_dashboard.py`
+
+TASK
+
+Inspect the existing project structure and the application's inventory page after login. Generate automated tests for the dashboard/inventory module based only on behavior and UI elements that can actually be verified.
+
+REQUIREMENTS
+
+- Use Python, pytest, and Playwright's synchronous API.
+- Follow the existing project's conventions and fixtures.
+- Do not modify or duplicate the existing login tests.
+- Use descriptive test names, stable locators, and explicit assertions.
+- Cover meaningful inventory-page functionality, using only features confirmed to exist.
+- Do not invent UI elements, expected results, or application behavior.
+- Keep tests independent and avoid unnecessary fixed sleeps.
+- If a behavior cannot be verified, explain the limitation instead of inventing an assertion.
+- Return the complete code for `tests/ui/test_dashboard.py` and list any assumptions.
+
+VALIDATION
+
+Run:
+
+`python -m pytest tests/ui/test_dashboard.py -v`
+
+Report the actual test results. Do not claim tests passed unless the command confirms it.
+
+#### Dashboard v1 Result
+
+**Output:** `tests/ui/test_dashboard.py`
+
+**Tests generated:**
+
+1. `test_inventory_page_displays_products` — checks that product names and prices are visible.
+2. `test_inventory_displays_six_products` — checks that six products are displayed.
+3. `test_inventory_can_be_sorted_by_price_low_to_high` — checks ascending price sorting.
+4. `test_adding_product_updates_cart_badge` — checks the cart badge and Remove button after adding a product.
+5. `test_shopping_cart_navigation_opens_cart_page` — checks navigation to the cart page and its heading.
+
+**Review observations:**
+
+- The tests use a fixture to log in before checking inventory functionality.
+- The test cases use Playwright locators and assertions.
+- The first test contains a somewhat redundant nonzero product-count assertion after checking that the first product is visible.
+- The code was run in headed mode with slow motion so browser actions could be observed.
+
+**Validation status:** The user reported that headed execution was working. The final pass/fail summary for all five Dashboard tests has not yet been recorded here; update this section from the actual terminal output.
+
+**Conclusion:** The Dashboard tests cover core inventory and shopping-cart behavior. Their final status should be based on the pytest results, not solely on the visible browser execution.
+
+---
