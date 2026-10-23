@@ -25,3 +25,5 @@ Tools used: Claude (planning, prompt design, review, fixes, docs), ChatGPT/Codex
 | 2026-10-23 | Claude | Task 2 (Dashboard): Prompt G1 | Ran a naive prompt to generate dashboard test cases | About 65 cases in markdown tables covering widgets, accuracy, filters, sort, responsive and permissions | Saved raw output unedited in `generated_tests/raw/dashboard_v1_output.md`; recorded problems in prompts.md (format, size, invented app, not automatable) |
 
 | 2026-10-23 | Claude | Task 2 (Dashboard): Prompt G2 | Drafted a SauceDemo-grounded prompt (role, context, Gherkin format, tags, limits, example, self-check) and ran it in a fresh chat | Dashboard Gherkin, 5 features and 27 scenarios; the model reported its prompt was truncated and omitted the coverage check | Saved the output unedited as `generated_tests/dashboard.feature`; recorded the truncation and multi-outcome steps as findings |
+
+| 2026-10-23 | Claude | API Gherkin cleanup | Rewrote `api_tests.feature` to add test IDs, objectives, one assertable outcome per step, and implemented/design-only tags | Cleaned feature file with 20 scenarios | Checked the implemented statuses against my own test assertions |
