@@ -1,5 +1,6 @@
 
 import os
+import re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -9,6 +10,23 @@ from ai.prompt_templates import FAILURE_EXPLAINER_PROMPT
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env")
+
+SENSITIVE_VALUE_PATTERNS = (
+    re.compile(
+        r"(?i)\b(api[_-]?key|access[_-]?token|auth(?:orization)?|"
+        r"password|secret)\b(\s*[:=]\s*|\s+)([^\s,;]+)"
+    ),
+    re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/-]+=*"),
+)
+
+
+def redact_sensitive_text(text: str) -> str:
+    """Redact common credential values before sending failure text externally."""
+    redacted = SENSITIVE_VALUE_PATTERNS[0].sub(
+        lambda match: f"{match.group(1)}{match.group(2)}[REDACTED]",
+        text,
+    )
+    return SENSITIVE_VALUE_PATTERNS[1].sub("Bearer [REDACTED]", redacted)
 
 
 def explain_failure(test_name: str, failure_details: str) -> str:
@@ -20,7 +38,7 @@ def explain_failure(test_name: str, failure_details: str) -> str:
 
     prompt = FAILURE_EXPLAINER_PROMPT.format(
         test_name=test_name,
-        failure_details=failure_details[:6000],
+        failure_details=redact_sensitive_text(failure_details)[:6000],
     )
 
     try:
