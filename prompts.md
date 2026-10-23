@@ -1,12 +1,14 @@
 # Prompts Log
 
-Prompts are documented in the order they were used. Original prompts should be preserved exactly as entered. Results, observations, and validation outcomes are documented separately from the prompt text.
+Prompts are documented in the order they were used. Original prompts are preserved exactly as entered. Results, observations, and validation outcomes are documented separately from the prompt text.
+
+Final suite status (confirmed 2026-10-23): `python -m pytest` collects and passes all tests: 5 Login, 5 Dashboard, 7 REST API, 2 example tests.
 
 ## Login Module
 
-### Prompt v1 — Initial Test Case Generation
+### Prompt v1: Initial Test Case Generation
 
-**Tool:** Claude  
+**Tool:** Claude
 **Date:** 2026-10-22
 
 **Prompt:**
@@ -20,15 +22,16 @@ Generate test cases for the login page of a web app. Cover valid login, invalid 
 **Problems identified:**
 
 - Markdown tables with free-text steps, not Gherkin or JSON, so not directly automatable.
+- About 65 cases, and the output was cut off mid-row at BF-15 because no size limit was set.
 - Many expected results were hedged ("per spec", "or a validation message").
 - No concrete test data, and no priority or tags.
 - Included features SauceDemo doesn't have (email login, forgot password, remember me, CAPTCHA).
 
 **Conclusion:** The prompt did not provide enough application context or define a strict, automation-friendly output format. Prompt v2 was created to address these issues.
 
-### Prompt v2 — Refined Gherkin Generation
+### Prompt v2: Refined Gherkin Generation
 
-**Tool:** Claude  
+**Tool:** Claude
 **Date:** 2026-10-22
 
 **Prompt:**
@@ -74,19 +77,19 @@ After the Gherkin, add a short comment block "# COVERAGE CHECK" listing, per are
 **Improvements over v1:**
 
 - Added role, context, strict Gherkin format, tags, limits, and an example.
-- Clarified that unsupported SauceDemo features should not be invented.
+- Clarified that unsupported SauceDemo features should not be invented, so the model used `@design-only` and proxies (locked_out_user, cookie deletion).
 - Required concrete test data, deterministic expected outcomes, and a coverage check.
 
 **Remaining issues identified during review:**
 
-- Error messages and the cookie name supplied by the generated output needed verification against the live application.
-- BF-04 was tagged `@automatable` while also carrying a comment that the functionality was not present. This inconsistency needed review.
+- Error messages and the cookie name came from the model and needed verification against the live site. I checked the error messages and the `/inventory.html` redirect in the browser before writing automation.
+- BF-04 was tagged `@automatable` while also carrying a comment that the functionality was not present. This inconsistency was noted but not changed in the saved file.
 
 **Conclusion:** Prompt v2 improved the structure and relevance of the generated cases, but the output still needed manual verification.
 
-### Prompt v3 — Login UI Automation
+### Prompt v3: Login UI Automation
 
-**Tool:** ChatGPT  
+**Tool:** ChatGPT
 **Date:** 2026-10-22
 
 **Prompt:**
@@ -124,15 +127,15 @@ python -m pytest tests/ui/test_login.py -v
 
 Record the actual pass/fail results separately. Do not claim tests passed unless execution confirms it.
 
+(Note: the duplicated "Task / TASK" heading is in the prompt exactly as I sent it.)
+
 #### v3 Result
 
 **Output:** `tests/ui/test_login.py`
 
-**Validation command:**
+**Validation command:** `python -m pytest tests/ui/test_login.py -v`
 
-`python -m pytest tests/ui/test_login.py -v`
-
-**Validation result:** All five Login tests passed, according to the terminal output recorded on 2026-10-22.
+**Validation result:** All five Login tests passed (terminal output recorded 2026-10-22, and again in the full-suite run on 2026-10-23).
 
 **What worked:**
 
@@ -140,15 +143,20 @@ Record the actual pass/fail results separately. Do not claim tests passed unless
 - Verified exact error messages for negative Login scenarios.
 - Verified successful navigation to the inventory page.
 
-**Conclusion:** The refined prompt produced executable Python UI tests, and all five tests passed in the reported run.
+#### Login module note
+
+- v1 failed on format, length (output truncated), hedged outcomes and invented features.
+- v2 added role, app context, a strict Gherkin format with tags, a scenario cap, and an explicit "do not invent features" rule with `@design-only` for missing ones.
+- v2 still needed human verification: the error messages and redirect were checked on the live site, and the BF-04 tag inconsistency was left as a recorded finding.
+- v3 asked only for scenarios I had verified by hand, which is why all five tests passed first time.
 
 ---
 
 ## Dashboard Module
 
-### Prompt v1 — Dashboard UI Automation
+### Prompt v1: Dashboard UI Automation
 
-**Tool:** ChatGPT  
+**Tool:** ChatGPT
 **Date:** 2026-10-22
 
 **Prompt:**
@@ -195,30 +203,34 @@ Report the actual test results. Do not claim tests passed unless the command con
 
 **Tests generated:**
 
-1. `test_inventory_page_displays_products` — checks that product names and prices are visible.
-2. `test_inventory_displays_six_products` — checks that six products are displayed.
-3. `test_inventory_can_be_sorted_by_price_low_to_high` — checks ascending price sorting.
-4. `test_adding_product_updates_cart_badge` — checks the cart badge and Remove button after adding a product.
-5. `test_shopping_cart_navigation_opens_cart_page` — checks navigation to the cart page and its heading.
+1. `test_inventory_page_displays_products`: product names and prices are visible.
+2. `test_inventory_displays_six_products`: six products are displayed.
+3. `test_inventory_can_be_sorted_by_price_low_to_high`: ascending price sorting.
+4. `test_adding_product_updates_cart_badge`: cart badge and Remove button after adding a product.
+5. `test_shopping_cart_navigation_opens_cart_page`: navigation to the cart page and its heading.
 
 **Review observations:**
 
 - The tests use a fixture to log in before checking inventory functionality.
-- The test cases use Playwright locators and assertions.
-- The first test contains a somewhat redundant nonzero product-count assertion after checking that the first product is visible.
+- The first test contains a somewhat redundant nonzero product-count assertion.
 - The code was run in headed mode with slow motion so browser actions could be observed.
 
-**Validation status:** The user reported that headed execution was working. The final pass/fail summary for all five Dashboard tests has not yet been recorded here; update this section from the actual terminal output.
+**Validation result:** All five Dashboard tests passed in the full-suite run on 2026-10-23.
 
-**Conclusion:** The Dashboard tests cover core inventory and shopping-cart behavior. Their final status should be based on the pytest results, not solely on the visible browser execution.
+#### Dashboard module note
+
+- The prompt asked for tests "based only on behavior that can be verified", so it did not invent widgets, so SauceDemo's inventory page was treated as the dashboard stand-in.
+- Not covered: permission-based visibility and responsive layout, because SauceDemo has no roles or responsive breakpoints I could verify.
+- Gap: I ran this prompt for automation code directly. A separate Gherkin test-case generation prompt for Dashboard (widget loading, data accuracy, filter/sort, responsive layout, permissions) is listed in the "Still to do" section below.
 
 ---
 
+## REST API Module
 
+### Prompt v1: API Test Design (Gherkin)
 
-## API Test Generation Prompt
-
-**Module:** REST API testing
+**Tool:** ChatGPT
+**Date:** 2026-10-22
 
 **Prompt:**
 
@@ -238,10 +250,83 @@ Use Gherkin format. Separate positive, negative, boundary, and security cases. E
 
 **Output requirements:** Produce a traceable API test-design document that can later be implemented in Python using pytest and requests once the actual API contract and environment are available.
 
+#### API v1 Result
 
-**API module — prompt refinement and validation notes**
+**Output:** `generated_tests/raw/api_tests.feature`
 
-- **Initial attempt:** The nonexistent-resource test assumed that `GET /posts/999999` would return HTTP 200 with an empty JSON object.
-- **Observed failure:** The public API returned HTTP 404, causing the assertion to fail.
-- **Refinement:** Updated the expected status to 404 based on the observed response, instead of relying on an unverified assumption.
-- **Validation:** The corrected test must be rerun before recording the final pass count. This finding applies to the tested public API endpoint and is not a universal REST API rule.
+**Problems identified:**
+
+- Scenarios lack per-scenario test IDs, objectives and explicit preconditions/request data, even though the prompt asked for them.
+- Some expected outcomes are ambiguous (for example "200 or 204"), which can't be asserted.
+- Coverage of invalid field values and error-format consistency is thin.
+- The prompt targets a hypothetical API, so the design is generic and not tied to the endpoints I actually tested.
+
+### Prompt v2: API Test Implementation
+
+**Tool:** ChatGPT
+**Date:** 2026-10-22
+
+**Prompt:**
+
+<PASTE THE EXACT PROMPT YOU GAVE CHATGPT TO WRITE tests/api/test_rest_api.py. If you don't have it, write "Original prompt not saved" here. Do not reconstruct it.>
+
+#### API v2 Result
+
+**Output:** `tests/api/test_rest_api.py`
+
+**Tests generated (JSONPlaceholder):** GET list, GET single post with schema check, POST, PUT, PATCH, DELETE, GET nonexistent post.
+
+**Refinement during validation:**
+
+- **Initial attempt:** the nonexistent-resource test assumed `GET /posts/999999` returns HTTP 200 with an empty JSON object.
+- **Observed failure:** the API returned HTTP 404, so the assertion failed, and the Failure Explainer produced an explanation of the mismatch.
+- **Fix:** I changed the expected status to 404 based on the observed response. This finding applies to this public API endpoint and is not a universal REST rule.
+
+**Validation result:** All seven API tests passed in the full-suite run on 2026-10-23.
+
+#### API module note
+
+- The first prompt asked for a design for a hypothetical API, which produced generic scenarios with ambiguous outcomes ("200 or 204") and missing IDs.
+- I changed approach: test a real public API (JSONPlaceholder) so expected statuses could be observed instead of assumed.
+- A wrong assumption (200 for a missing post) was caught by a failing test and corrected to 404.
+- Not covered against the real API: token validation and rate limiting, because JSONPlaceholder has neither. They remain design-level scenarios in `api_tests.feature`.
+
+---
+
+## Task 3: Failure Explainer (Option A)
+
+### Implementation prompt
+
+**Tool:** ChatGPT
+**Date:** 2026-10-22
+
+**Prompt:**
+
+<PASTE THE EXACT PROMPT YOU GAVE CHATGPT TO BUILD THE FAILURE EXPLAINER. If it's not saved, write "Original prompt not saved".>
+
+### Runtime prompt sent to Gemini
+
+The prompt sent to the LLM at test-failure time lives in `ai/prompt_templates.py` (`FAILURE_EXPLAINER_PROMPT`):
+
+<PASTE THE CONTENTS OF FAILURE_EXPLAINER_PROMPT HERE, exactly as it appears in the file>
+
+#### Result
+
+- Real Gemini API call on every failing test; explanations are printed to the terminal and saved to `reports/sample_output/failure_explanations.txt`.
+- Failure text is redacted for keys, tokens and passwords before being sent, then truncated to 6,000 characters.
+- Sample output was produced from a deliberate demo failure and from the real 404 assertion failure in the API tests.
+
+#### Failure Explainer note
+
+- The first version only saved explanations to a file, so a failure on screen showed no explanation. I added terminal printing.
+- The first version loaded the key from `.env.example`, which got a real key committed locally. GitHub push protection blocked the push. I revoked the key, rewrote the local commit, and moved loading to the ignored `.env`.
+- The first version sent raw failure text. I added redaction before truncation.
+- Explanations are hypotheses and are not verified automatically.
+
+---
+
+## Still to do (remove each line when done)
+
+- [ ] Dashboard: generate Gherkin test cases (widget loading, data accuracy, filter/sort, responsive layout, permission-based visibility) with a recorded prompt v1 and v2, saved to `generated_tests/`.
+- [ ] Paste the two placeholder prompts above (API implementation, Failure Explainer) or mark them as not saved.
+- [ ] Confirm `generated_tests/login.feature` and `generated_tests/raw/api_tests.feature` exist in the repo.
