@@ -217,11 +217,98 @@ Report the actual test results. Do not claim tests passed unless the command con
 
 **Validation result:** All five Dashboard tests passed in the full-suite run on 2026-10-23.
 
+### Prompt G1: Dashboard test case generation (naive)
+
+**Tool:** Claude
+**Date:** 2026-10-23
+
+**Prompt:**
+
+Generate test cases for the dashboard of a web app. Cover widget loading, data accuracy, filter/sort behavior, responsive layout and permission-based visibility.
+
+#### G1 Result
+
+**Raw output:** `generated_tests/raw/dashboard_v1_output.md`
+
+**Problems identified:**
+
+- Markdown tables with free-text steps, not Gherkin or JSON, so not directly automatable.
+- About 65 cases across six tables, with no cap, so far too many to implement or review.
+- Invented a generic dashboard (KPI cards, charts, roles Admin/Manager/Viewer, multi-tenant orgs) that does not exist on SauceDemo.
+- Many cases need things I can't do on the target: database queries, mocking a 500, 100k records, multiple IPs and orgs, Safari.
+- Hedged outcomes ("per spec", "inclusive or exclusive", "or 404") that can't be asserted.
+- No concrete test data and no tags, so nothing separates smoke from edge cases.
+- Not tied to the SauceDemo inventory page, which is what my automated tests actually cover.
+
+### Prompt G2: Dashboard test case generation (grounded in SauceDemo)
+
+**Tool:** Claude
+**Date:** 2026-10-23
+
+**Prompt:**
+
+ROLE
+You are a senior SDET writing automatable regression tests for a web app.
+
+CONTEXT
+App under test: https://www.saucedemo.com (stand-in for a test management platform dashboard).
+After login as standard_user / secret_sauce, the page /inventory.html shows:
+- 6 product cards, each with name, description, price, image and an "Add to cart" button (it becomes "Remove" once clicked)
+- A sort dropdown with: Name (A to Z), Name (Z to A), Price (low to high), Price (high to low)
+- A cart icon in the header with a badge showing the item count
+- A burger menu with All Items, About, Logout, Reset App State
+There are NO widgets, charts, date filters, text filters, pagination, user roles or admin views.
+Other users: problem_user (known to behave differently from standard_user), locked_out_user (cannot log in). Password for all: secret_sauce.
+
+TASK
+Generate test cases for these five areas: widget loading (product cards loading), data accuracy, filter/sort behavior, responsive layout, permission-based visibility.
+
+OUTPUT FORMAT
+- Gherkin only. One Feature per area (5 Features total). No commentary before or after.
+- Every Scenario starts with a tag line: @id-WL-01 (prefix WL, DA, FS, RL, PV), a priority (@P1, @P2, @P3), a type (@positive, @negative, @boundary, @security), and @automatable or @design-only.
+- Max 6 steps per scenario. Use concrete test data (exact product names, prices, viewport sizes), never "valid data".
+- Each Then step must be one deterministic, assertable outcome. No "or", no "per spec".
+
+RULES
+- 4 to 6 scenarios per area, no more. No duplicates.
+- Do not invent UI elements, products, prices or text. If you are not sure of an exact value, use a step that reads it from the page instead of hard-coding it.
+- If an area cannot be tested on this app (permission-based visibility by role, filters beyond the sort dropdown), write those scenarios as @design-only and add a one-line comment "# Not present on SauceDemo: <reason>". Where a realistic proxy exists (e.g. unauthenticated access to /inventory.html for permissions, problem_user for behavioural differences, browser viewport resizing for responsive layout), write an @automatable scenario using it.
+- No scenarios that need a database, mocked API failures, multiple browsers, or waits over 10 seconds.
+
+EXAMPLE OF EXPECTED STYLE
+@id-FS-01 @P1 @positive @automatable
+Scenario: Sort products by price low to high
+  Given I am logged in as "standard_user" with password "secret_sauce"
+  When I select "Price (low to high)" in the sort dropdown
+  Then the product prices are in ascending order
+
+SELF-CHECK
+After the Gherkin, add a short comment block "# COVERAGE CHECK" listing, per area, the number of scenarios and any requirement you could not cover and why.
+
+#### G2 Result
+
+**Output:** `generated_tests/dashboard.feature`
+
+**Improvements over G1:**
+
+- Gherkin with tags, 5 to 6 scenarios per area, concrete SauceDemo data (names, prices, viewport sizes).
+- Grounded in the real inventory page, so no invented widgets, roles or charts.
+- Permission-based visibility was reframed as authentication and access, and marked `@design-only` where only manual checks apply.
+
+**Problems identified:**
+
+- The prompt was sent in full, but the model reported that its RULES section was cut off after "If an area cannot be". The output has a `# NOTE` line and no `# COVERAGE CHECK` block, so the later rules were probably not applied.
+- A few `Then` steps assert more than one outcome (WL-02, DA-02, RL-01), against the "one assertable outcome" rule.
+- Product names and prices were hard-coded from the model's memory rather than read from the page. I need to verify them on the live site.
+
+**What I would change in G3:** shorten the prompt so it is not clipped, put the most important rules (no commentary, one outcome per Then, coverage check) near the top, and re-run.
+
 #### Dashboard module note
 
-- The prompt asked for tests "based only on behavior that can be verified", so it did not invent widgets, so SauceDemo's inventory page was treated as the dashboard stand-in.
-- Not covered: permission-based visibility and responsive layout, because SauceDemo has no roles or responsive breakpoints I could verify.
-- Gap: I ran this prompt for automation code directly. A separate Gherkin test-case generation prompt for Dashboard (widget loading, data accuracy, filter/sort, responsive layout, permissions) is listed in the "Still to do" section below.
+- The automation prompt asked for tests "based only on behavior that can be verified", so it did not invent widgets and SauceDemo's inventory page was treated as the dashboard stand-in.
+- G1 failed on format, size and an invented app. G2 added SauceDemo context, Gherkin and tags, which fixed those.
+- The RULES section was reported as cut off, so the output missed the no-commentary and coverage-check rules, and a few `Then` steps still assert more than one outcome.
+- Permission-based visibility has no real equivalent on SauceDemo, so it is covered through authentication scenarios. Responsive layout and permissions exist only as Gherkin, not as automated tests.
 
 ---
 
@@ -322,68 +409,3 @@ The prompt sent to the LLM at test-failure time lives in `ai/prompt_templates.py
 - The first version loaded the key from `.env.example`, which got a real key committed locally. GitHub push protection blocked the push. I revoked the key, rewrote the local commit, and moved loading to the ignored `.env`.
 - The first version sent raw failure text. I added redaction before truncation.
 - Explanations are hypotheses and are not verified automatically.
-
----
-
-## Still to do (remove each line when done)
-
-- [ ] Dashboard: generate Gherkin test cases (widget loading, data accuracy, filter/sort, responsive layout, permission-based visibility) with a recorded prompt v1 and v2, saved to `generated_tests/`.
-- [ ] Paste the two placeholder prompts above (API implementation, Failure Explainer) or mark them as not saved.
-- [ ] Confirm `generated_tests/login.feature` and `generated_tests/raw/api_tests.feature` exist in the repo.
-
-### Prompt G1: Dashboard test case generation (naive)
-
-**Tool:** Claude
-**Date:** 2026-10-23
-
-**Prompt:**
-
-Generate test cases for the dashboard of a web app. Cover widget loading, data accuracy, filter/sort behavior, responsive layout and permission-based visibility.
-
-#### G1 Result
-
-**Raw output:** `generated_tests/raw/dashboard_v1_output.md`
-
-**Problems identified:**
-
-- Markdown tables with free-text steps, not Gherkin or JSON, so not directly automatable.
-- About 65 cases across six tables, with no cap, so far too many to implement or review.
-- Invented a generic dashboard (KPI cards, charts, roles Admin/Manager/Viewer, multi-tenant orgs) that does not exist on SauceDemo.
-- Many cases need things I can't do on the target: database queries, mocking a 500, 100k records, multiple IPs and orgs, Safari.
-- Hedged outcomes ("per spec", "inclusive or exclusive", "or 404") that can't be asserted.
-- No concrete test data and no tags, so nothing separates smoke from edge cases.
-- Not tied to the SauceDemo inventory page, which is what my automated tests actually cover.
-
-### Prompt G2: Dashboard test case generation (grounded in SauceDemo)
-
-**Tool:** Claude
-**Date:** 2026-10-23
-
-**Prompt:**
-
-<paste the full G2 prompt exactly as you sent it>
-
-#### G2 Result
-
-**Output:** `generated_tests/dashboard.feature`
-
-**Improvements over G1:**
-
-- Gherkin with tags, 5 to 6 scenarios per area, concrete SauceDemo data (names, prices, viewport sizes).
-- Grounded in the real inventory page, so no invented widgets, roles or charts.
-- Permission-based visibility was reframed as authentication and access, and marked `@design-only` where only manual checks apply.
-
-**Problems identified:**
-
-- The prompt was sent in full, but the model reported that its RULES section was cut off after "If an area cannot be". The output has a `# NOTE` line and no `# COVERAGE CHECK` block, so the later rules were probably not applied.
-- A few `Then` steps assert more than one outcome (WL-02, DA-02, RL-01), against the "one assertable outcome" rule.
-- Product names and prices were hard-coded from the model's memory rather than read from the page. I need to verify them on the live site.
-
-**What I would change in G3:** shorten the prompt so it is not clipped, put the most important rules (no commentary, one outcome per Then, coverage check) near the top, and re-run.
-
-#### Dashboard module note
-
-- G1 failed on format, size and an invented app. G2 added SauceDemo context, Gherkin and tags, which fixed those.
-- The RULES section was reported as cut off, so the output missed the no-commentary and coverage-check rules.
-- Multi-outcome `Then` steps remain in a few scenarios.
-- Permission-based visibility has no real equivalent on SauceDemo, so it is covered through authentication scenarios.
