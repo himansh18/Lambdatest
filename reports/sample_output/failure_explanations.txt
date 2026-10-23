@@ -1,0 +1,35 @@
+
+======================================================================
+Test: tests/ui/tests/test_ai_failure_demo.py::test_ai_failure_demo
+AI Failure Explanation:
+Based on the test failure details provided, here is the diagnosis:
+
+### 1. Plain-English explanation of why the test failed
+The test failed because an explicit assertion (`assert 1 == 2`) evaluated to false. In Python, comparing the integer `1` to the integer `2` using the equality operator (`==`) returns `false`, which causes pytest to raise an `AssertionError` with the custom message provided: `"Demo failure: expected 1 to equal 2"`.
+
+### 2. Most likely cause (Hypothesis)
+**Hypothesis:** This test is an intentional, hardcoded demonstration or placeholder rather than a validation of actual application behavior. 
+
+Based on the test name (`test_ai_failure_demo`) and the docstring (`"Temporary test to verify the Gemini failure-explainer hook."`), the test was written specifically to fail so that developers could test or verify an AI-powered failure-analysis tool or CI/CD notification hook.
+
+### 3. Practical debugging step or suggested fix
+* **If you are verifying the AI hook:** No fix is needed for the code itself; the test is working as intended by generating a failure for the AI tool to analyze.
+* **If this test was accidentally left in the codebase:** Remove or rewrite `tests/ui/tests/test_ai_failure_demo.py` to test actual UI or application logic instead of comparing hardcoded mismatched numbers.
+
+======================================================================
+Test: tests/api/test_rest_api.py::test_get_nonexistent_post
+AI Failure Explanation:
+Based on the test failure details provided, here is the analysis:
+
+### 1. Plain-English Explanation of Why the Test Failed
+The automated test sent an HTTP `GET` request to retrieve a post with an extremely high ID (`999999`), which is assumed to not exist. The test author wrote an assertion expecting the server to respond with a `200 OK` status code (likely based on a comment in the test code noting that JSONPlaceholder sometimes uses alternative behaviors for missing resources). However, the server actually responded with a `404 Not Found` status code. Because `404` does not equal `200`, the assertion failed.
+
+### 2. Most Likely Cause (Hypothesis)
+* **Hypothesis:** The underlying API under test has been updated, or the test is running against a real backend/different environment (e.g., a standard REST API implementation) rather than JSONPlaceholder. Standard REST APIs conventionally return a `404 Not Found` status code when a requested resource does not exist, whereas the test was written expecting a `200 OK` (which is a quirk specific to certain mock APIs or older implementations). 
+
+### 3. Practical Debugging Step or Suggested Fix
+* **Debugging Step:** Print or log the full response body (`print(response.json())` or `print(response.text)`) alongside the status code to see what payload the server actually returned with the `404` response.
+* **Suggested Fix:** If a `404 Not Found` is the correct and expected behavior for a missing resource in your current API environment, update the test assertion to match the REST standard:
+  ```python
+  assert response.status_code == 404
+  ```

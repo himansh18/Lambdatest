@@ -213,3 +213,35 @@ Report the actual test results. Do not claim tests passed unless the command con
 **Conclusion:** The Dashboard tests cover core inventory and shopping-cart behavior. Their final status should be based on the pytest results, not solely on the visible browser execution.
 
 ---
+
+
+
+## API Test Generation Prompt
+
+**Module:** REST API testing
+
+**Prompt:**
+
+Act as a senior SDET and API test engineer. Generate comprehensive REST API test scenarios for a hypothetical resource-management API. Clearly state all assumptions and do not claim that the API exists or that any tests have executed.
+
+Cover these modules:
+
+1. **Authentication and token validation:** valid token, missing token, malformed token, expired token, and insufficient permissions.
+2. **CRUD operations:** create a resource, retrieve an existing resource, update a resource, partially update a resource, delete a resource, and access a nonexistent resource.
+3. **Error handling:** malformed JSON, missing required fields, invalid field values, unsupported HTTP methods, server errors, and consistent error-response formats.
+4. **Rate limiting:** requests within the allowed limit, requests exceeding the limit, rate-limit response headers, and behavior after the limit resets.
+5. **Schema validation:** required fields, data types, formats, unexpected fields, null values, and response-schema consistency.
+
+For each scenario, provide a test ID, objective, HTTP method, assumed endpoint, preconditions, request data, expected HTTP status, and expected response behavior.
+
+Use Gherkin format. Separate positive, negative, boundary, and security cases. Explicitly label assumed endpoints and expected statuses as examples requiring confirmation against the actual API contract. Do not fabricate execution results.
+
+**Output requirements:** Produce a traceable API test-design document that can later be implemented in Python using pytest and requests once the actual API contract and environment are available.
+
+
+**API module — prompt refinement and validation notes**
+
+- **Initial attempt:** The nonexistent-resource test assumed that `GET /posts/999999` would return HTTP 200 with an empty JSON object.
+- **Observed failure:** The public API returned HTTP 404, causing the assertion to fail.
+- **Refinement:** Updated the expected status to 404 based on the observed response, instead of relying on an unverified assumption.
+- **Validation:** The corrected test must be rerun before recording the final pass count. This finding applies to the tested public API endpoint and is not a universal REST API rule.
