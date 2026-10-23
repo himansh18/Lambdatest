@@ -330,3 +330,60 @@ The prompt sent to the LLM at test-failure time lives in `ai/prompt_templates.py
 - [ ] Dashboard: generate Gherkin test cases (widget loading, data accuracy, filter/sort, responsive layout, permission-based visibility) with a recorded prompt v1 and v2, saved to `generated_tests/`.
 - [ ] Paste the two placeholder prompts above (API implementation, Failure Explainer) or mark them as not saved.
 - [ ] Confirm `generated_tests/login.feature` and `generated_tests/raw/api_tests.feature` exist in the repo.
+
+### Prompt G1: Dashboard test case generation (naive)
+
+**Tool:** Claude
+**Date:** 2026-10-23
+
+**Prompt:**
+
+Generate test cases for the dashboard of a web app. Cover widget loading, data accuracy, filter/sort behavior, responsive layout and permission-based visibility.
+
+#### G1 Result
+
+**Raw output:** `generated_tests/raw/dashboard_v1_output.md`
+
+**Problems identified:**
+
+- Markdown tables with free-text steps, not Gherkin or JSON, so not directly automatable.
+- About 65 cases across six tables, with no cap, so far too many to implement or review.
+- Invented a generic dashboard (KPI cards, charts, roles Admin/Manager/Viewer, multi-tenant orgs) that does not exist on SauceDemo.
+- Many cases need things I can't do on the target: database queries, mocking a 500, 100k records, multiple IPs and orgs, Safari.
+- Hedged outcomes ("per spec", "inclusive or exclusive", "or 404") that can't be asserted.
+- No concrete test data and no tags, so nothing separates smoke from edge cases.
+- Not tied to the SauceDemo inventory page, which is what my automated tests actually cover.
+
+### Prompt G2: Dashboard test case generation (grounded in SauceDemo)
+
+**Tool:** Claude
+**Date:** 2026-10-23
+
+**Prompt:**
+
+<paste the full G2 prompt exactly as you sent it>
+
+#### G2 Result
+
+**Output:** `generated_tests/dashboard.feature`
+
+**Improvements over G1:**
+
+- Gherkin with tags, 5 to 6 scenarios per area, concrete SauceDemo data (names, prices, viewport sizes).
+- Grounded in the real inventory page, so no invented widgets, roles or charts.
+- Permission-based visibility was reframed as authentication and access, and marked `@design-only` where only manual checks apply.
+
+**Problems identified:**
+
+- The prompt was sent in full, but the model reported that its RULES section was cut off after "If an area cannot be". The output has a `# NOTE` line and no `# COVERAGE CHECK` block, so the later rules were probably not applied.
+- A few `Then` steps assert more than one outcome (WL-02, DA-02, RL-01), against the "one assertable outcome" rule.
+- Product names and prices were hard-coded from the model's memory rather than read from the page. I need to verify them on the live site.
+
+**What I would change in G3:** shorten the prompt so it is not clipped, put the most important rules (no commentary, one outcome per Then, coverage check) near the top, and re-run.
+
+#### Dashboard module note
+
+- G1 failed on format, size and an invented app. G2 added SauceDemo context, Gherkin and tags, which fixed those.
+- The RULES section was reported as cut off, so the output missed the no-commentary and coverage-check rules.
+- Multi-outcome `Then` steps remain in a few scenarios.
+- Permission-based visibility has no real equivalent on SauceDemo, so it is covered through authentication scenarios.
